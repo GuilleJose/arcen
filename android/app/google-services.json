@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "191724519378",
+    "project_id": "arcen-cec49",
+    "storage_bucket": "arcen-cec49.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:191724519378:android:c4c6a29ec3ef09e9a1520b",
+        "android_client_info": {
+          "package_name": "com.example.arcen"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBKsrlyEgZ8PqW382_fggsmOi61nKCmNJ8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
