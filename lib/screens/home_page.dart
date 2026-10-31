@@ -49,8 +49,12 @@ class _HomePageState extends State<HomePage> {
 
   // Gasolineras recibidas desde GasoleoPage.
   List<Map<String, dynamic>> _gasolineras = [];
-  // Avisos activos recibidos desde Firestore.
+  // Avisos recibidos desde Firestore.
   List<AvisoItem> _avisos = [];
+  bool _avisosManualesCargados = false;
+  bool _avisosDgtCargados = false;
+  String? _errorAvisosManuales;
+  String? _errorAvisosDgt;
 
   // Parkings recibidos desde Firestore.
   List<Map<String, dynamic>> _parkings = [];
@@ -106,34 +110,58 @@ class _HomePageState extends State<HomePage> {
     _suscripcionAvisosManuales = firestore
         .collection('avisos_manuales')
         .snapshots()
-        .listen((snapshot) {
-          if (!mounted) return;
+        .listen(
+          (snapshot) {
+            if (!mounted) return;
 
-          final manuales = snapshot.docs
-              .map((doc) => AvisoItem.fromDocument(doc, esDgt: false))
-              .where((aviso) => aviso.estaActivo)
-              .toList();
+            final manuales = snapshot.docs
+                .map((doc) => AvisoItem.fromDocument(doc, esDgt: false))
+                .toList();
 
-          setState(() {
-            _avisos = [..._avisos.where((aviso) => aviso.esDgt), ...manuales];
-          });
-        });
+            setState(() {
+              _avisosManualesCargados = true;
+              _errorAvisosManuales = null;
+              _avisos = [..._avisos.where((aviso) => aviso.esDgt), ...manuales];
+            });
+          },
+          onError: (Object error) {
+            debugPrint('Error cargando avisos de conductores: $error');
+            if (!mounted) return;
+            setState(() {
+              _errorAvisosManuales =
+                  'No se han podido leer los avisos de conductores. '
+                  'Revisa los permisos de Firestore.';
+            });
+          },
+        );
 
     _suscripcionAvisosDgt = firestore
         .collection('avisos_dgt')
         .snapshots()
-        .listen((snapshot) {
-          if (!mounted) return;
+        .listen(
+          (snapshot) {
+            if (!mounted) return;
 
-          final dgt = snapshot.docs
-              .map((doc) => AvisoItem.fromDocument(doc, esDgt: true))
-              .where((aviso) => aviso.estaActivo)
-              .toList();
+            final dgt = snapshot.docs
+                .map((doc) => AvisoItem.fromDocument(doc, esDgt: true))
+                .toList();
 
-          setState(() {
-            _avisos = [..._avisos.where((aviso) => !aviso.esDgt), ...dgt];
-          });
-        });
+            setState(() {
+              _avisosDgtCargados = true;
+              _errorAvisosDgt = null;
+              _avisos = [..._avisos.where((aviso) => !aviso.esDgt), ...dgt];
+            });
+          },
+          onError: (Object error) {
+            debugPrint('Error cargando avisos de la DGT: $error');
+            if (!mounted) return;
+            setState(() {
+              _errorAvisosDgt =
+                  'No se han podido leer los avisos de la DGT. '
+                  'Comprueba las reglas de Firestore.';
+            });
+          },
+        );
   }
 
   void _escucharParkings() {
@@ -460,6 +488,12 @@ class _HomePageState extends State<HomePage> {
         title: 'Avisos',
         icon: Icons.warning_amber_outlined,
         page: AvisosPage(
+          isActive: selectedSection == _HomeSection.notices,
+          avisos: _avisos,
+          avisosManualesCargados: _avisosManualesCargados,
+          avisosDgtCargados: _avisosDgtCargados,
+          errorAvisosManuales: _errorAvisosManuales,
+          errorAvisosDgt: _errorAvisosDgt,
           avisosMeteorologicos: _avisosMeteorologicos,
           onMostrarControlesChanged: (mostrar) {
             setState(() {
@@ -1132,7 +1166,7 @@ class _HomePageState extends State<HomePage> {
       color: arcenBlue,
       padding: EdgeInsets.symmetric(
         horizontal: compact ? 12 : 24,
-        vertical: compact ? 12 : 18,
+        vertical: compact ? 8 : 18,
       ),
       child: Row(
         children: [
@@ -1330,7 +1364,7 @@ class _HomePageState extends State<HomePage> {
                   width: double.infinity,
                   padding: EdgeInsets.symmetric(
                     horizontal: compact ? 12 : 24,
-                    vertical: compact ? 10 : 18,
+                    vertical: compact ? 6 : 18,
                   ),
                   decoration: const BoxDecoration(
                     color: Colors.white,
@@ -1369,71 +1403,95 @@ class _HomePageState extends State<HomePage> {
     required String tonnage,
     required String currentLoad,
   }) {
-    return Column(
+    return Row(
       children: [
-        InkWell(
-          onTap: openDriverManagement,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 4),
-            child: Row(
-              children: [
-                const Icon(Icons.person_outline, color: arcenBlue, size: 23),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        driverName,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 15,
-                          color: arcenDarkBlue,
+        Expanded(
+          flex: 5,
+          child: InkWell(
+            onTap: openDriverManagement,
+            borderRadius: BorderRadius.circular(8),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              child: Row(
+                children: [
+                  const Icon(Icons.person_outline, color: arcenBlue, size: 21),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          driverName,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13,
+                            color: arcenDarkBlue,
+                          ),
                         ),
-                      ),
-                      Text(
-                        type,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontSize: 10,
-                          color: Colors.grey,
+                        Text(
+                          type,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 9,
+                            color: Colors.grey,
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),
-        const Divider(height: 18),
-        InkWell(
-          onTap: openTruckManagement,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 4),
-            child: Row(
-              children: [
-                _licensePlate(plate, compact: true),
-                const Spacer(),
-                const SizedBox(width: 8),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Text(
-                      '$currentLoad kg',
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 14,
-                      ),
+        const SizedBox(width: 6),
+        const SizedBox(
+          height: 36,
+          child: VerticalDivider(width: 1, thickness: 1),
+        ),
+        const SizedBox(width: 6),
+        Expanded(
+          flex: 5,
+          child: InkWell(
+            onTap: openTruckManagement,
+            borderRadius: BorderRadius.circular(8),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              child: Row(
+                children: [
+                  _licensePlate(plate, compact: true),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          '$currentLoad kg',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 11,
+                          ),
+                        ),
+                        Text(
+                          'de $tonnage t',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 9,
+                            color: Colors.grey,
+                          ),
+                        ),
+                      ],
                     ),
-                    Text(
-                      'de $tonnage t',
-                      style: const TextStyle(fontSize: 10, color: Colors.grey),
-                    ),
-                  ],
-                ),
-              ],
+                  ),
+                ],
+              ),
             ),
           ),
         ),
@@ -1525,6 +1583,18 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget _licensePlate(String plate, {bool compact = false}) {
+    final plateLabel = Text(
+      plate.toUpperCase(),
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: TextStyle(
+        color: const Color(0xFF15191D),
+        fontSize: compact ? 12 : 13,
+        fontWeight: FontWeight.w900,
+        letterSpacing: compact ? 0.8 : 1,
+      ),
+    );
+
     return Container(
       padding: const EdgeInsets.all(1.5),
       decoration: BoxDecoration(
@@ -1577,16 +1647,7 @@ class _HomePageState extends State<HomePage> {
               ),
             ),
             SizedBox(width: compact ? 4 : 5),
-            Text(
-              plate.toUpperCase(),
-              maxLines: 1,
-              style: TextStyle(
-                color: const Color(0xFF15191D),
-                fontSize: compact ? 12 : 13,
-                fontWeight: FontWeight.w900,
-                letterSpacing: compact ? 0.8 : 1,
-              ),
-            ),
+            if (compact) Flexible(child: plateLabel) else plateLabel,
           ],
         ),
       ),
@@ -1603,7 +1664,7 @@ class _HomePageState extends State<HomePage> {
         color: Colors.white,
         border: Border(top: BorderSide(color: Color(0xFFDCE3EB))),
       ),
-      padding: EdgeInsets.only(top: 5, bottom: compact ? 2 : 8),
+      padding: EdgeInsets.only(top: compact ? 3 : 5, bottom: compact ? 1 : 8),
       child: Row(
         children: sections.map((section) {
           final selected = selectedSection == section.id;
@@ -1618,11 +1679,11 @@ class _HomePageState extends State<HomePage> {
                 });
               },
               child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 5),
+                padding: EdgeInsets.symmetric(vertical: compact ? 3 : 5),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(section.icon, size: compact ? 23 : 28, color: color),
+                    Icon(section.icon, size: compact ? 22 : 28, color: color),
                     const SizedBox(height: 3),
                     FittedBox(
                       fit: BoxFit.scaleDown,
@@ -1637,7 +1698,7 @@ class _HomePageState extends State<HomePage> {
                         ),
                       ),
                     ),
-                    const SizedBox(height: 4),
+                    SizedBox(height: compact ? 2 : 4),
                     Container(
                       height: 3,
                       width: selected ? 25 : 0,

@@ -587,7 +587,7 @@ class _HoursPageState extends State<HoursPage> {
     final seconds = DriverActivity.values
         .map((activity) => _hours.timelineSeconds[activity.key] ?? 0)
         .toList();
-    final total = seconds.fold<int>(0, (sum, value) => sum + value);
+    final total = seconds.fold<int>(0, (total, value) => total + value);
     if (total == 0) {
       return const Text(
         'Aún no hay actividad registrada hoy.',

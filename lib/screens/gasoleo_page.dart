@@ -698,7 +698,7 @@ class _GasoleoPageState extends State<GasoleoPage> {
                   mode: LaunchMode.platformDefault,
                 );
 
-                if (!abierto && context.mounted) {
+                if (!abierto && mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
                       content: Text('No se ha podido abrir Google Maps.'),

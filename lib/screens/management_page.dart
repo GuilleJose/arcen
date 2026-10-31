@@ -101,7 +101,7 @@ class _ManagementPageState extends State<ManagementPage> {
     final safeSeconds = math.max(0, seconds);
     final hours = safeSeconds ~/ 3600;
     final minutes = (safeSeconds % 3600) ~/ 60;
-    return hours == 0 ? '$minutes min' : '$hours h ${minutes} min';
+    return hours == 0 ? '$minutes min' : '$hours h $minutes min';
   }
 
   // ------------------------------------------------------------
@@ -875,15 +875,14 @@ class _ManagementPageState extends State<ManagementPage> {
                                 if (isTruck &&
                                     number('cargaActualKg') >
                                         number('mmaKg') - number('taraKg')) {
-                                  ScaffoldMessenger.of(this.context)
-                                      .showSnackBar(
-                                        const SnackBar(
-                                          content: Text(
-                                            'La carga supera la capacidad '
-                                            'máxima calculada del vehículo.',
-                                          ),
-                                        ),
-                                      );
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text(
+                                        'La carga supera la capacidad '
+                                        'máxima calculada del vehículo.',
+                                      ),
+                                    ),
+                                  );
                                   return;
                                 }
 
@@ -960,7 +959,7 @@ class _ManagementPageState extends State<ManagementPage> {
       }
 
       if (mounted) {
-        ScaffoldMessenger.of(this.context)
+        ScaffoldMessenger.of(context)
             .showSnackBar(const SnackBar(content: Text('Registro guardado')));
       }
     }

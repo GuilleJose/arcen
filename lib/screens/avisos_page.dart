@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -260,11 +261,23 @@ class _AvisoLugar {
 
 class AvisosPage extends StatefulWidget {
   final ValueChanged<bool>? onMostrarControlesChanged;
+  final List<AvisoItem> avisos;
+  final bool avisosManualesCargados;
+  final bool avisosDgtCargados;
+  final String? errorAvisosManuales;
+  final String? errorAvisosDgt;
   final List<AvisoMeteorologico> avisosMeteorologicos;
+  final bool isActive;
   const AvisosPage({
     super.key,
     this.onMostrarControlesChanged,
+    this.avisos = const [],
+    this.avisosManualesCargados = false,
+    this.avisosDgtCargados = false,
+    this.errorAvisosManuales,
+    this.errorAvisosDgt,
     this.avisosMeteorologicos = const [],
+    this.isActive = false,
   });
 
   @override
@@ -276,14 +289,47 @@ class _AvisosPageState extends State<AvisosPage> {
   bool _publicando = false;
   int _busquedaUbicacionId = 0;
   DateTime? _ultimaBusquedaUbicacion;
+  Timer? _actualizacionHoraria;
 
   CollectionReference<Map<String, dynamic>> get _avisosManuales =>
       FirebaseFirestore.instance.collection('avisos_manuales');
 
-  CollectionReference<Map<String, dynamic>> get _avisosDgt =>
-      FirebaseFirestore.instance.collection('avisos_dgt');
-
   String? get _uid => FirebaseAuth.instance.currentUser?.uid;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.isActive) _activarActualizaciones();
+  }
+
+  @override
+  void didUpdateWidget(covariant AvisosPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.isActive == oldWidget.isActive) return;
+
+    if (widget.isActive) {
+      _activarActualizaciones();
+    } else {
+      _detenerActualizaciones();
+    }
+  }
+
+  @override
+  void dispose() {
+    _detenerActualizaciones();
+    super.dispose();
+  }
+
+  void _activarActualizaciones() {
+    _actualizacionHoraria = Timer.periodic(const Duration(hours: 1), (_) {
+      if (mounted) setState(() {});
+    });
+  }
+
+  void _detenerActualizaciones() {
+    _actualizacionHoraria?.cancel();
+    _actualizacionHoraria = null;
+  }
 
   void _mensaje(String texto) {
     if (!mounted) return;
@@ -373,62 +419,36 @@ class _AvisosPageState extends State<AvisosPage> {
           ),
           const Divider(height: 1),
           Expanded(
-            child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-              stream: _avisosDgt.snapshots(),
-              builder: (context, dgtSnapshot) {
-                if (dgtSnapshot.hasError) {
-                  return _errorCarga(
-                    'No se han podido leer los avisos de la DGT. '
-                    'Comprueba las reglas de Firestore.',
-                  );
-                }
-
-                if (dgtSnapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(
-                    child: CircularProgressIndicator(color: arcenBlue),
-                  );
-                }
-
-                final dgt = (dgtSnapshot.data?.docs ?? [])
-                    .map((doc) => AvisoItem.fromDocument(doc, esDgt: true))
-                    .where((aviso) => aviso.estaActivo)
-                    .toList();
-
-                if (!_mostrarControles) {
-                  return _listaAvisos(dgt, []);
-                }
-
-                return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-                  stream: _avisosManuales.snapshots(),
-                  builder: (context, manualSnapshot) {
-                    if (manualSnapshot.hasError) {
-                      return _errorCarga(
-                        'No se han podido leer los avisos de conductores. '
-                        'Revisa los permisos de Firestore.',
-                      );
-                    }
-
-                    if (manualSnapshot.connectionState ==
-                        ConnectionState.waiting) {
-                      return const Center(
-                        child: CircularProgressIndicator(color: arcenBlue),
-                      );
-                    }
-
-                    final manuales = (manualSnapshot.data?.docs ?? [])
-                        .map((doc) => AvisoItem.fromDocument(doc, esDgt: false))
-                        .where((aviso) => aviso.estaActivo)
-                        .toList();
-
-                    return _listaAvisos(dgt, manuales);
-                  },
-                );
-              },
-            ),
+            child: _contenidoAvisos(),
           ),
         ],
       ),
     );
+  }
+
+  Widget _contenidoAvisos() {
+    if (widget.errorAvisosDgt != null) {
+      return _errorCarga(widget.errorAvisosDgt!);
+    }
+    if (!widget.avisosDgtCargados ||
+        (_mostrarControles &&
+            widget.errorAvisosManuales == null &&
+            !widget.avisosManualesCargados)) {
+      return const Center(
+        child: CircularProgressIndicator(color: arcenBlue),
+      );
+    }
+    if (_mostrarControles && widget.errorAvisosManuales != null) {
+      return _errorCarga(widget.errorAvisosManuales!);
+    }
+
+    final activos = widget.avisos.where((aviso) => aviso.estaActivo);
+    final dgt = activos.where((aviso) => aviso.esDgt).toList();
+    final manuales = _mostrarControles
+        ? activos.where((aviso) => !aviso.esDgt).toList()
+        : <AvisoItem>[];
+
+    return _listaAvisos(dgt, manuales);
   }
 
   Widget _errorCarga(String texto) {
